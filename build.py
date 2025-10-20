@@ -173,17 +173,37 @@ def embed_image_as_data_uri(path):
     mime = mimetypes.guess_type(path)[0] or "application/octet-stream"
     return f"data:{mime};base64," + base64.b64encode(b).decode("ascii")
 
-def inject_image(root, slot_rect, img_path):
-    x, y, w, h = rect_bbox(slot_rect)
-    href = embed_image_as_data_uri(img_path)
-    # On place l'image “plein cadre” et on demande au moteur de rendu de préserver le ratio
+def inject_image(root, rect, img_path):
+    """Insère une image en data URI dans le slot <rect> avec respect des proportions."""
+    import base64, mimetypes
+
+    x = float(rect.get("x", 0))
+    y = float(rect.get("y", 0))
+    w = float(rect.get("width", 0))
+    h = float(rect.get("height", 0))
+
+    # Encodage base64 + type MIME
+    mime = (mimetypes.guess_type(img_path)[0]) or "image/png"
+    with open(img_path, "rb") as f:
+        data_uri = "data:%s;base64,%s" % (mime, base64.b64encode(f.read()).decode("ascii"))
+
+    # Choix du comportement d’ajustement :
+    preserve_ratio = "xMidYMid meet"   # ✅ CONTAIN (tout visible, bandes possibles)
+    # preserve_ratio = "xMidYMid slice"  # ✅ COVER (remplit tout, recadrage possible)
+
+    # Création du nœud <image> en ElementTree (pas lxml)
     img = ET.Element(q("image"), {
-        "{http://www.w3.org/1999/xlink}href": href,
         "x": str(x), "y": str(y),
         "width": str(w), "height": str(h),
-        "preserveAspectRatio": "xMidYMid meet"
+        "preserveAspectRatio": preserve_ratio,
+        # SVG 2 préfère href, certains lecteurs attendent encore xlink:href -> on met les deux
+        "href": data_uri,
+        "{http://www.w3.org/1999/xlink}href": data_uri,
     })
     return img
+
+
+
 
 # -------- build --------
 def build_card(row):
