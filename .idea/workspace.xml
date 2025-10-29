@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="1816cfac-f20f-49af-b0f9-f55053ba82f7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/assets/gants.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/tag.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.py" beforeDir="false" afterPath="$PROJECT_DIR$/build.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cards.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/001.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/001.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/002.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/002.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/template.svg" beforeDir="false" afterPath="$PROJECT_DIR$/template.svg" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="34iKT2xnEW3lEwne5TC5kSAW5OM" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "project.structure.last.edited": "Problems",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.2",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="1816cfac-f20f-49af-b0f9-f55053ba82f7" name="Changes" comment="" />
+      <created>1761690991975</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1761690991975</updated>
+      <workItem from="1761691034808" duration="23000" />
+    </task>
+    <servers />
+  </component>
+</project>

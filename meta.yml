@@ -1,0 +1,12 @@
+id: demo_001
+template: template.svg          # chemin vers ton template
+export_png_width: 1600          # optionnel (largeur de sortie PNG)
+
+title_file: title.txt           # chemin vers le contenu texte brut
+
+# (Optionnel) style du titre
+title_font_family: "DejaVu Sans"
+title_font_size: 36             # en px
+title_fill: "#222222"
+title_padding: 8                # marge interne en px
+line_height: 1.2                # multiplicateur (ex: 1.2 = 120%)
