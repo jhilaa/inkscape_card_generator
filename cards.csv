@@ -1,3 +1,0 @@
-id;title;text_color;bg_color;frame_color;image;formula1;formula2
-001;Énergie et masse;#222222;#f8f8f8;#222222;assets/tag.png;E = mc^2;\frac{a+b}{c}
-002;Intégrale test;#222222;#ffffff;#1f2937;assets/gants.png;\int_0^1 x^2\,dx;a^2+b^2=c^2
