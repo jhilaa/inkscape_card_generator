@@ -1,0 +1,1 @@
+python generate_svg.py --config config.yml --template template.svg --out out/output.svg

@@ -7,7 +7,6 @@ from functools import lru_cache
 from typing import List, Tuple, Optional
 from lxml import etree
 from PIL import ImageFont
-from latex_svg import latex_to_svg_fragment
 
 # --- Config ---
 DEFAULT_FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
@@ -175,75 +174,6 @@ def main():
     root = tree.getroot()
 
     ns = {"svg": "http://www.w3.org/2000/svg"}
-   
-    # 3+
-    def insert_rich_text(parent, x, y, width, text, font_path=DEFAULT_FONT_PATH, font_size=28, line_height=1.3, latex_scale=2.5):
-        font = get_font(font_path, font_size)
-        lh = font_size * line_height
-        cur_x = x
-        cur_y = y
-        current_line = ""
-
-        segments = split_segments_with_latex(text)
-
-        for kind, seg in segments:
-            if kind == "text":
-                # Wrapping simple par mots
-                words = seg.split(" ")
-                for word in words:
-                    test_line = current_line + word + " "
-                    if font.getlength(test_line) > width:
-                        # flush
-                        tspan = etree.Element("text", x=str(x), y=str(cur_y), font_size=str(font_size))
-                        tspan.text = current_line.strip()
-                        parent.append(tspan)
-                        cur_y += lh
-                        current_line = word + " "
-                    else:
-                        current_line = test_line
-
-            elif kind == "latex_block":
-                # flush ligne courante
-                if current_line.strip():
-                    tspan = etree.Element("text", x=str(x), y=str(cur_y), font_size=str(font_size))
-                    tspan.text = current_line.strip()
-                    parent.append(tspan)
-                    cur_y += lh
-                    current_line = ""
-
-                # insérer la formule LaTeX sur une ligne dédiée
-                svg = latex_to_svg_fragment(seg, scale=latex_scale)
-                if svg:
-                    frag_root = etree.fromstring(svg.encode("utf-8"))
-                    g = etree.Element("g")
-                    g.extend(list(frag_root))
-                    offset_y = cur_y + lh
-                    g.set("transform", f"translate({x},{offset_y})")
-                    parent.append(g)
-                    cur_y += lh * 1.5  # espace après bloc
-
-            elif kind == "latex_inline":
-                # insérer le texte courant avant
-                if current_line.strip():
-                    tspan = etree.Element("text", x=str(x), y=str(cur_y), font_size=str(font_size))
-                    tspan.text = current_line.strip()
-                    parent.append(tspan)
-                    cur_x = x + font.getlength(current_line)
-                    current_line = ""
-
-                # insérer la formule inline
-                svg = latex_to_svg_fragment(seg, scale=latex_scale)
-                if svg:
-                    frag_root = etree.fromstring(svg.encode("utf-8"))
-                    g = etree.Element("g")
-                    g.extend(list(frag_root))
-                    offset_y = cur_y - font_size * 0.3
-                    g.set("transform", f"translate({cur_x},{offset_y})")
-                    parent.append(g)
-                    cur_x += extract_svg_width(svg) + 5  # espace après
-
-    
-    # -------------------------------
 
     # 4) Insérer le titre
     title_slot = root.xpath('//*[@id="title_slot"]', namespaces=ns)[0]
@@ -258,9 +188,7 @@ def main():
     x = float(text1_slot.get("x")) + 10
     y = float(text1_slot.get("y")) + 40
     w = float(text1_slot.get("width"))
-    #insert_wrapped_text(root, x, y, w, config.get("text1", ""), font_size=28)
-    insert_rich_text(root, x, y, w, config.get("text1", ""), font_size=28)
-
+    insert_wrapped_text(root, x, y, w, config.get("text1", ""), font_size=28)
 
     # 6) Insérer text2
     text2_slot = root.xpath('//*[@id="text2_slot"]', namespaces=ns)[0]
