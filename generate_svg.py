@@ -2,9 +2,11 @@ import os
 import re
 import yaml
 import base64
+import cairosvg
 from lxml import etree
 from PIL import ImageFont
 from latex_svg import latex_to_svg_code
+
 
 # === Constantes ===
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
@@ -25,7 +27,7 @@ NSMAP = {None: SVG_NS}
 # Namespace SVG
 ns = {"svg": "http://www.w3.org/2000/svg"}
 
-
+OUT_PATH = "out/output.svg"
 
 # === Regex pour découper texte + formules + espaces + sauts de ligne
 PATTERN = re.compile(r"""
@@ -192,6 +194,13 @@ def render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", ima
     else:
         print("❌ Slot ou balise image manquants")
 
+def export_svg_to_png(svg_path, png_path, scale=1.0):
+    try:
+        cairosvg.svg2png(url=svg_path, write_to=png_path, scale=scale)
+        print(f"✅ PNG généré : {png_path}")
+    except Exception as e:
+        print(f"❌ Erreur PNG : {e}")
+
 def main():
     with open("config.yml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
@@ -209,7 +218,9 @@ def main():
     os.makedirs("out", exist_ok=True)
     tree.write(out_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
     print(f"✅ SVG généré : {out_path}")
-   
+    
+    # Génération du PNG
+    export_svg_to_png(out_path, "out/output.png", scale=2.0)
 
 if __name__ == "__main__":
     main()

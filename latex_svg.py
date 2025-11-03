@@ -10,6 +10,7 @@ def _which(cmd: str) -> Optional[str]:
 def have_latex_toolchain() -> bool:
     return (_which("latex") and _which("dvisvgm")) or (_which("pdflatex") and _which("dvisvgm"))
 
+# Renvoie le svg correspondant à une formule latex
 def latex_to_svg_code (latex_code: str, scale: float = 1.0) -> Optional[str]:
     use_latex = _which("latex") is not None
     use_pdflatex = _which("pdflatex") is not None
