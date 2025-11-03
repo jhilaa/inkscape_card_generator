@@ -9,6 +9,10 @@ from latex_svg import latex_to_svg_code
 
 
 # === Constantes ===
+CARDS_DIR = "cards"
+OUT_DIR = "out"
+TEMPLATE_PATH = "template.svg"
+
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 FONT_SIZE = 35
 LINE_HEIGHT = 1.3
@@ -171,6 +175,7 @@ def render_text_in_slot(root, slot_id, text):
             cursor_x = x_start
 
 def render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", image_path=""):
+    print(f"⚠️ render_image_in_slot / image_path : {image_path}")
     if not image_path or not os.path.exists(image_path):
         print("❌ Image introuvable :", image_path)
         return
@@ -201,26 +206,47 @@ def export_svg_to_png(svg_path, png_path, scale=1.0):
     except Exception as e:
         print(f"❌ Erreur PNG : {e}")
 
-def main():
-    with open("config.yml", "r", encoding="utf-8") as f:
+def process_card(file_path, card_name):
+    
+    config_path = os.path.join(file_path, "config.yml")
+    if not os.path.exists(config_path):
+        print(f"❌ Pas de config.yml dans {file_path}")
+        return
+
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
-    tree = etree.parse("template.svg")
+        
+    print(f"file_path = {file_path}")
+    print(f"card_name : {card_name}")
+    print(f"config = {config.get("image_path", "image.png")}")
+    image_path = os.path.join(file_path, config.get("image_path", "image.png"))
+    print(f"image_path = {image_path}")
+
+    tree = etree.parse(TEMPLATE_PATH)
     root = tree.getroot()
 
     render_text_in_slot(root, "title_slot", config.get("title", ""))
     render_text_in_slot(root, "text1_slot", config.get("text1", ""))
     render_text_in_slot(root, "text2_slot", config.get("text2", ""))
-    #render_image_in_slot (root, "image_slot", config.get("image_path", ""))
-    render_image_in_slot(root, "image_frame", "image_slot", config.get("image_path", ""))
+    render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", image_path=image_path)
 
-    out_path = "out/output.svg"
-    os.makedirs("out", exist_ok=True)
-    tree.write(out_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
-    print(f"✅ SVG généré : {out_path}")
+    os.makedirs(OUT_DIR, exist_ok=True)
+    svg_path = os.path.join(OUT_DIR, f"{card_name}.svg")
+    png_path = os.path.join(OUT_DIR, f"{card_name}.png")
+    png_path = os.path.join(OUT_DIR, f"{card_name}.png")
+
+    tree.write(svg_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
+    export_svg_to_png(svg_path, png_path, scale=2.0)
+
+    print(f"✅ Carte générée : {card_name}")
     
-    # Génération du PNG
-    export_svg_to_png(out_path, "out/output.png", scale=2.0)
+def main():
+    for file_name in os.listdir(CARDS_DIR):
+        file_path = os.path.join(CARDS_DIR, file_name)
+        card_name = file_name
+        if os.path.isdir(file_path):
+            process_card(file_path, card_name)
 
 if __name__ == "__main__":
     main()

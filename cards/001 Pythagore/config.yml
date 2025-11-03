@@ -7,7 +7,8 @@ text1: |
   Et même $\frac{a}{b}$ dans une phrase. Et en mode "bloc"
   $$\sum_{i=0,\ i\neq j}^n u_{ij}$$
   avec du texte en plus derrière
+  
 text2: |
   Bloc secondaire, sans formule ici.
 
-image_path: "./image.png"
+image_path: "image.png"
