@@ -7,10 +7,12 @@ from latex_svg import latex_to_svg_fragment
 
 # === Constantes ===
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-FONT_SIZE = 28
+FONT_SIZE = 35
 LINE_HEIGHT = 1.3
-LATEX_SCALE = 2.5
-BASELINE_RATIO = 0
+LATEX_SCALE = 4 # dimension du png
+LATEX_MARGIN_X = 15 # marge autour du bloc latex
+BASELINE_RATIO = 0.03 # pour corriger la position verticale des formules
+BLOC_MARGIN_X = 10 # marge des blocs de texte
 
 SVG_NS = "http://www.w3.org/2000/svg"
 NSMAP = {None: SVG_NS}
@@ -32,8 +34,6 @@ PATTERN = re.compile(r"""
     )
   | (?P<word>[^\s]+[ \t]*)
 """, re.VERBOSE)
-
-
 
 def split_text_into_tokens(text):
     tokens = []
@@ -59,7 +59,6 @@ def set_slot_font_size(slot, font_size):
     new_style = f"{existing_style}font-size:{font_size}px;"
     slot.set("style", new_style)
 
-
 def get_svg_width(svg_fragment):
     try:
         root = etree.fromstring(svg_fragment.encode("utf-8"))
@@ -79,7 +78,7 @@ def render_text_in_slot(root, slot_id, text):
     font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE)
     LINE_HEIGHT_px = FONT_SIZE * LINE_HEIGHT
     
-    x_start = float(slot.get("x")) + 10
+    x_start = float(slot.get("x")) + 10 + BLOC_MARGIN_X
     y_start = float(slot.get("y")) + 40
     cursor_x = x_start
     cursor_y = y_start
@@ -88,7 +87,7 @@ def render_text_in_slot(root, slot_id, text):
     for token in tokens:
         if token["type"] in ("WORD", "SPACE"):
             width = get_text_width(token["text"], font)
-            if cursor_x + width > x_start + slot_width:
+            if cursor_x + width > x_start + slot_width - BLOC_MARGIN_X:
                 cursor_y += LINE_HEIGHT_px
                 cursor_x = x_start
             text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y))
@@ -104,7 +103,7 @@ def render_text_in_slot(root, slot_id, text):
             svg = latex_to_svg_fragment(token["text"], scale=LATEX_SCALE)
             if svg:
                 width = get_svg_width(svg)
-                if cursor_x + width > x_start + slot_width:
+                if cursor_x + width > x_start + slot_width - BLOC_MARGIN_X :
                     cursor_y += LINE_HEIGHT_px
                     cursor_x = x_start
                 frag_root = etree.fromstring(svg.encode("utf-8"))
@@ -113,7 +112,7 @@ def render_text_in_slot(root, slot_id, text):
                 offset_y = cursor_y - FONT_SIZE * BASELINE_RATIO
                 g.set("transform", f"translate({cursor_x},{offset_y})")
                 root.append(g)
-                cursor_x += width + 5
+                cursor_x += width + LATEX_MARGIN_X
 
         elif token["type"] == "NEW_LINE":
             cursor_y += LINE_HEIGHT_px
