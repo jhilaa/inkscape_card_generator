@@ -10,7 +10,7 @@ FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 FONT_SIZE = 28
 LINE_HEIGHT = 1.3
 LATEX_SCALE = 2.5
-BASELINE_RATIO = 0.82
+BASELINE_RATIO = 0
 
 SVG_NS = "http://www.w3.org/2000/svg"
 NSMAP = {None: SVG_NS}
