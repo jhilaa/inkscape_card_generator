@@ -1,12 +1,12 @@
 title: "Rapport final 2025"
 
 text1: |
-  Voici un premier bloc de texte. 
-  On peut y mettre plusieurs phrases, et le script gère le retour à la ligne.
-  Même des formules LaTeX comme $E=mc^2$ pourront être intégrées plus tard.
-  
+  Voici un premier bloc de texte avec plusieurs formules inline.
+  La célèbre équation $E=mc^2$ en est une.
+  On peut aussi écrire $\sum_{k=1}^{6} k$ pour illustrer une somme.
+  Et même $\frac{a}{b}$ dans une phrase.
+
 text2: |
-  Deuxième bloc de texte, plus court.
-  Idéal pour des notes ou un résumé.
-  
+  Bloc secondaire, sans formule ici.
+
 image: "./image.png"

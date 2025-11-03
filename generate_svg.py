@@ -1,27 +1,24 @@
-import argparse
-import base64
 import os
 import re
 import yaml
-from functools import lru_cache
-from typing import List, Tuple, Optional
 from lxml import etree
 from PIL import ImageFont
 from latex_svg import latex_to_svg_fragment
 
-# --- Config ---
-DEFAULT_FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-DEFAULT_FONT_FAMILY = "Arial"
-DEFAULT_FONT_SIZE = 28
-DEFAULT_LINE_GAP = 2
-DEFAULT_OVERFLOW = "clip"
+# === Constantes ===
+FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
+FONT_SIZE = 28
+LINE_HEIGHT = 1.3
+LATEX_SCALE = 2.5
+BASELINE_RATIO = 0.82
 
 SVG_NS = "http://www.w3.org/2000/svg"
-XLINK_NS = "http://www.w3.org/1999/xlink"
-XML_NS = "http://www.w3.org/XML/1998/namespace"
+NSMAP = {None: SVG_NS}
 
-LATEX_PATTERN = re.compile(r"""
-    (?P<block>
+# === Regex pour découper texte + formules + espaces + sauts de ligne
+PATTERN = re.compile(r"""
+    (?P<newline>\n)
+  | (?P<formula>
         \$\$(?:(?!\$\$).)*\$\$
       | \\
 
@@ -30,272 +27,112 @@ LATEX_PATTERN = re.compile(r"""
 ).)*\\\]
 
 
-      | \\begin\{(?P<env>equation\*?|aligned|gather|align\*?|cases)\}
-          .*?
-        \\end\{(?P=env)\}
-    )
-  | (?P<inline>
-        (?<!\\)\$(?:(?!\$(?!\d)).)*?(?<!\\)\$
+      | (?<!\\)\$(?:(?!\$(?!\d)).)*?(?<!\\)\$
       | \\\((?:(?!\\\)).)*\\\)
     )
-""", re.DOTALL | re.VERBOSE)
+  | (?P<word>[^\s]+[ \t]*)
+""", re.VERBOSE)
 
-@lru_cache(maxsize=32)
-def get_font(font_path: str, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(font_path, size=int(size))
 
-try:
-    import cairosvg
-    CAIRO_AVAILABLE = True
-except ImportError:
-    CAIRO_AVAILABLE = False
 
-# ----------------------------
-# calcul la largeur d'un bloc svg
-# ----------------------------
-def extract_svg_width(svg_fragment: str) -> float:
-    """
-    Extrait la largeur du fragment SVG LaTeX à partir du viewBox.
-    Retourne 0.0 si non disponible ou erreur.
-    """
+def split_text_into_tokens(text):
+    tokens = []
+    for match in PATTERN.finditer(text):
+        if match.group("newline"):
+            tokens.append({"type": "NEW_LINE", "text": "\n"})
+        elif match.group("formula"):
+            tokens.append({"type": "FORMULA", "text": match.group("formula")})
+        elif match.group("word"):
+            tokens.append({"type": "WORD", "text": match.group("word")})
+    return tokens
+
+def get_text_width(text, font):
+    return font.getlength(text)
+    
+def apply_text_style(elem, font_size, font_family="Arial    "):
+    elem.set("style", f"font-size:{font_size}px; font-family:{font_family};")
+    
+def set_slot_font_size(slot, font_size):
+    existing_style = slot.get("style", "").strip()
+    if existing_style and not existing_style.endswith(";"):
+        existing_style += ";"
+    new_style = f"{existing_style}font-size:{font_size}px;"
+    slot.set("style", new_style)
+
+
+def get_svg_width(svg_fragment):
     try:
         root = etree.fromstring(svg_fragment.encode("utf-8"))
-        viewBox = root.get("viewBox")
-        if viewBox:
-            parts = [float(v) for v in viewBox.strip().split()]
-            if len(parts) == 4:
-                _, _, width, _ = parts
-                return width
-    except Exception as e:
-        print(f"[debug] Erreur extraction largeur SVG : {e}")
+        view_box = root.get("viewBox")
+        if view_box:
+            _, _, width, _ = [float(v) for v in view_box.split()]
+            return width
+    except Exception:
+        pass
     return 0.0
 
-# ----------------------------
-# découpe un texte en segments, selon les motifs latex
-# ----------------------------
-def split_segments_with_latex(src: str) -> List[Tuple[str, str]]:
-    segments = []
-    pos = 0
-    for m in LATEX_PATTERN.finditer(src):
-        if m.start() > pos:
-            segments.append(("text", src[pos:m.start()]))
-        if m.group("block"):
-            segments.append(("latex_block", m.group("block")))
-        elif m.group("inline"):
-            segments.append(("latex_inline", m.group("inline")))
-        pos = m.end()
-    if pos < len(src):
-        segments.append(("text", src[pos:]))
-    return segments
+def render_text_in_slot(root, slot_id, text):
+    slot = root.xpath(f'//*[@id="{slot_id}"]')[0]
+    set_slot_font_size (slot, FONT_SIZE)
+    slot_width = float(slot.get("width"))
 
-# ----------------------------
-# Fonction utilitaire : insérer du texte avec retour à la ligne
-# ----------------------------
-def insert_wrapped_text(parent, x, y, width, text, font_size=32, line_height=1.2):
-    """
-    Ajoute un élément <text> avec des <tspan> pour gérer le retour à la ligne.
-    Approche simple basée sur une largeur moyenne de caractère.
-    """
-    import textwrap
+    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE)
+    LINE_HEIGHT_px = FONT_SIZE * LINE_HEIGHT
+    
+    x_start = float(slot.get("x")) + 10
+    y_start = float(slot.get("y")) + 40
+    cursor_x = x_start
+    cursor_y = y_start
 
-    avg_char_width = font_size * 0.6  # heuristique monospace-like
-    max_chars = max(1, int(width / avg_char_width))
+    tokens = split_text_into_tokens(text)
+    for token in tokens:
+        if token["type"] in ("WORD", "SPACE"):
+            width = get_text_width(token["text"], font)
+            if cursor_x + width > x_start + slot_width:
+                cursor_y += LINE_HEIGHT_px
+                cursor_x = x_start
+            text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y))
+            text_elem.text = token["text"]
+            apply_text_style(text_elem, FONT_SIZE)
+            root.append(text_elem)  
+            #text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y)) # , FONT_SIZE=str(FONT_SIZE))
+            #text_elem.text = token["text"]
+            #root.append(text_elem)
+            cursor_x += width
 
-    # Découper texte en lignes (préserve paragraphes)
-    lines = []
-    for para in text.split("\n"):
-        if para.strip() == "":
-            lines.append("")  # ligne vide pour un saut
-        else:
-            lines.extend(textwrap.wrap(para, width=max_chars))
+        elif token["type"] == "FORMULA":
+            svg = latex_to_svg_fragment(token["text"], scale=LATEX_SCALE)
+            if svg:
+                width = get_svg_width(svg)
+                if cursor_x + width > x_start + slot_width:
+                    cursor_y += LINE_HEIGHT_px
+                    cursor_x = x_start
+                frag_root = etree.fromstring(svg.encode("utf-8"))
+                g = etree.Element("g")
+                g.extend(list(frag_root))
+                offset_y = cursor_y - FONT_SIZE * BASELINE_RATIO
+                g.set("transform", f"translate({cursor_x},{offset_y})")
+                root.append(g)
+                cursor_x += width + 5
 
-    text_elem = etree.Element(
-        "text",
-        x=str(x),
-        y=str(y),
-        style=f"font-size:{font_size}px; font-family:Arial; fill:#000000",
-    )
-
-    first_line = True
-    for line in lines:
-        dy = "0em" if first_line else f"{line_height}em"
-        tspan = etree.SubElement(text_elem, "tspan", x=str(x), dy=dy)
-        tspan.text = line
-        first_line = False
-
-    parent.append(text_elem)
-
-
-def ensure_out_dir(path="out"):
-    os.makedirs(path, exist_ok=True)
-    return path
-
-
-def export_png_with_cairosvg(svg_path, png_path, scale=1.0):
-    if not CAIRO_AVAILABLE:
-        raise RuntimeError(
-            "CairoSVG n'est pas installé. Installe-le avec: pip install cairosvg\n"
-            "Ou utilise l'export Inkscape CLI (voir plus bas)."
-        )
-    # scale permet d'augmenter la résolution si besoin (ex: 2.0 pour @2x)
-    cairosvg.svg2png(url=svg_path, write_to=png_path, scale=scale)
-
-
-def export_png_with_inkscape(svg_path, png_path, dpi=300):
-    """
-    Alternative: Inkscape CLI (assure une fidélité parfaite à Inkscape).
-    Nécessite Inkscape installé et disponible dans le PATH.
-    """
-    import subprocess
-    cmd = [
-        "inkscape",
-        f"--export-type=png",
-        f"--export-filename={png_path}",
-        f"--export-dpi={dpi}",
-        svg_path,
-    ]
-    subprocess.run(cmd, check=True)
-
+        elif token["type"] == "NEW_LINE":
+            cursor_y += LINE_HEIGHT_px
+            cursor_x = x_start
 
 def main():
-    # 1) Dossier de sortie
-    out_dir = ensure_out_dir("out")
-    out_svg = os.path.join(out_dir, "output.svg")
-    out_png = os.path.join(out_dir, "output.png")
-
-    # 2) Charger config YAML
     with open("config.yml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-       
-    test = config.get("image")
-    print(f"Image path test: {test}")
 
-    # 3) Charger le template SVG
     tree = etree.parse("template.svg")
     root = tree.getroot()
 
-    ns = {"svg": "http://www.w3.org/2000/svg"}
-   
-    # 3+
-    def insert_rich_text(parent, x, y, width, text, font_path=DEFAULT_FONT_PATH, font_size=28, line_height=1.3, latex_scale=2.5):
-        font = get_font(font_path, font_size)
-        lh = font_size * line_height
-        cur_x = x
-        cur_y = y
-        current_line = ""
+    render_text_in_slot(root, "text1_slot", config.get("text1", ""))
+    render_text_in_slot(root, "text2_slot", config.get("text2", ""))
 
-        segments = split_segments_with_latex(text)
-
-        for kind, seg in segments:
-            if kind == "text":
-                # Wrapping simple par mots
-                words = seg.split(" ")
-                for word in words:
-                    test_line = current_line + word + " "
-                    if font.getlength(test_line) > width:
-                        # flush
-                        tspan = etree.Element("text", x=str(x), y=str(cur_y), font_size=str(font_size))
-                        tspan.text = current_line.strip()
-                        parent.append(tspan)
-                        cur_y += lh
-                        current_line = word + " "
-                    else:
-                        current_line = test_line
-
-            elif kind == "latex_block":
-                # flush ligne courante
-                if current_line.strip():
-                    tspan = etree.Element("text", x=str(x), y=str(cur_y), font_size=str(font_size))
-                    tspan.text = current_line.strip()
-                    parent.append(tspan)
-                    cur_y += lh
-                    current_line = ""
-
-                # insérer la formule LaTeX sur une ligne dédiée
-                svg = latex_to_svg_fragment(seg, scale=latex_scale)
-                if svg:
-                    frag_root = etree.fromstring(svg.encode("utf-8"))
-                    g = etree.Element("g")
-                    g.extend(list(frag_root))
-                    offset_y = cur_y + lh
-                    g.set("transform", f"translate({x},{offset_y})")
-                    parent.append(g)
-                    cur_y += lh * 1.5  # espace après bloc
-
-            elif kind == "latex_inline":
-                # insérer le texte courant avant
-                if current_line.strip():
-                    tspan = etree.Element("text", x=str(x), y=str(cur_y), font_size=str(font_size))
-                    tspan.text = current_line.strip()
-                    parent.append(tspan)
-                    cur_x = x + font.getlength(current_line)
-                    current_line = ""
-
-                # insérer la formule inline
-                svg = latex_to_svg_fragment(seg, scale=latex_scale)
-                if svg:
-                    frag_root = etree.fromstring(svg.encode("utf-8"))
-                    g = etree.Element("g")
-                    g.extend(list(frag_root))
-                    offset_y = cur_y - font_size * 0.3
-                    g.set("transform", f"translate({cur_x},{offset_y})")
-                    parent.append(g)
-                    cur_x += extract_svg_width(svg) + 5  # espace après
-
-    
-    # -------------------------------
-
-    # 4) Insérer le titre
-    title_slot = root.xpath('//*[@id="title_slot"]', namespaces=ns)[0]
-    x = float(title_slot.get("x")) + 10
-    y = float(title_slot.get("y")) + 40
-    w = float(title_slot.get("width"))
-    print(f"Title: {config.get("title", "")}")
-    insert_wrapped_text(root, x, y, w, config.get("title", ""), font_size=48)
-
-    # 5) Insérer text1
-    text1_slot = root.xpath('//*[@id="text1_slot"]', namespaces=ns)[0]
-    x = float(text1_slot.get("x")) + 10
-    y = float(text1_slot.get("y")) + 40
-    w = float(text1_slot.get("width"))
-    #insert_wrapped_text(root, x, y, w, config.get("text1", ""), font_size=28)
-    insert_rich_text(root, x, y, w, config.get("text1", ""), font_size=28)
-
-
-    # 6) Insérer text2
-    text2_slot = root.xpath('//*[@id="text2_slot"]', namespaces=ns)[0]
-    x = float(text2_slot.get("x")) + 10
-    y = float(text2_slot.get("y")) + 40
-    w = float(text2_slot.get("width"))
-    insert_wrapped_text(root, x, y, w, config.get("text2", ""), font_size=28)
-    
-    # 7) Insertion de l'image
-    image_path = config.get("image")
-    print(f"Image path: {image_path}")
-    if image_path and os.path.exists(image_path):
-        with open(image_path, "rb") as imgf:
-            encoded = base64.b64encode(imgf.read()).decode("ascii")
-        ext = os.path.splitext(image_path)[1].lower()
-        mime = "image/png" if ext == ".png" else "image/jpeg"
-        data_uri = f"data:{mime};base64,{encoded}"
-        image_elem = root.xpath("//*[@id='image_slot']", namespaces=ns)
-        if image_elem:
-            image_elem[0].set(f"{{{XLINK_NS}}}href", data_uri)
-
-    # 8) Sauvegarder le SVG
-    tree.write(out_svg, encoding="utf-8", xml_declaration=True, pretty_print=True)
-    print(f"SVG généré: {out_svg}")
-
-    # 9) Exporter en PNG
-    try:
-        export_png_with_cairosvg(out_svg, out_png, scale=1.0)
-        print(f"PNG exporté (CairoSVG): {out_png}")
-    except Exception as e:
-        print("Export PNG via CairoSVG indisponible ou en erreur:", e)
-        print("Tentative d'export via Inkscape CLI…")
-        export_png_with_inkscape(out_svg, out_png, dpi=300)
-        print(f"PNG exporté (Inkscape): {out_png}")
-
+    out_path = "out/output.svg"
+    os.makedirs("out", exist_ok=True)
+    tree.write(out_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
+    print(f"✅ SVG généré : {out_path}")
 
 if __name__ == "__main__":
     main()
