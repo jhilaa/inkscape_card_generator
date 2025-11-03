@@ -10,7 +10,7 @@ def _which(cmd: str) -> Optional[str]:
 def have_latex_toolchain() -> bool:
     return (_which("latex") and _which("dvisvgm")) or (_which("pdflatex") and _which("dvisvgm"))
 
-def latex_to_svg_fragment(latex_code: str, scale: float = 1.0) -> Optional[str]:
+def latex_to_svg_code (latex_code: str, scale: float = 1.0) -> Optional[str]:
     use_latex = _which("latex") is not None
     use_pdflatex = _which("pdflatex") is not None
     if not _which("dvisvgm") or not (use_latex or use_pdflatex):

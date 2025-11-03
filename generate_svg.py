@@ -4,16 +4,20 @@ import yaml
 import base64
 from lxml import etree
 from PIL import ImageFont
-from latex_svg import latex_to_svg_fragment
+from latex_svg import latex_to_svg_code
 
 # === Constantes ===
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 FONT_SIZE = 35
 LINE_HEIGHT = 1.3
 LATEX_SCALE = 4 # dimension du png
-LATEX_MARGIN_X = 15 # marge autour du bloc latex
+LATEX_INLINE_MARGIN_RIGHT = 15 # marge autour du bloc latex
 BASELINE_RATIO = 0.03 # pour corriger la position verticale des formules
-BLOC_MARGIN_X = 10 # marge des blocs de texte
+TEXT_MARGIN_UP = 10 # marge des blocs de texte
+TEXT_MARGIN_LEFT = 10 
+TEXT_MARGIN_RIGHT = 10 
+LATEX_BLOCK_MARGIN_LEFT = 0
+LATEX_BLOCK_MARGIN_RIGHT = 0
 
 SVG_NS = "http://www.w3.org/2000/svg"
 NSMAP = {None: SVG_NS}
@@ -26,26 +30,33 @@ ns = {"svg": "http://www.w3.org/2000/svg"}
 # === Regex pour découper texte + formules + espaces + sauts de ligne
 PATTERN = re.compile(r"""
     (?P<newline>\n)
+  | (?P<block>\$\$(?:(?!\$\$).)*\$\$)  # Bloc d'équation $$...$$
   | (?P<formula>
-        \$\$(?:(?!\$\$).)*\$\$
-      | \\
+        \
 
 \[(?:(?!\\\]
 
 ).)*\\\]
 
+         # 
 
-      | (?<!\\)\$(?:(?!\$(?!\d)).)*?(?<!\\)\$
-      | \\\((?:(?!\\\)).)*\\\)
+\[...\]
+
+
+      | \\\((?:(?!\\\)).)*\\\)        # \(...\)
+      | (?<!\\)\$(?:(?!\$(?!\d)).)*?(?<!\\)\$  # Inline $...$
     )
-  | (?P<word>[^\s]+[ \t]*)
-""", re.VERBOSE)
+  | (?P<word>[^\s]+[ \t]*)            # Mot ou espace
+""", re.VERBOSE | re.DOTALL)
+
 
 def split_text_into_tokens(text):
     tokens = []
     for match in PATTERN.finditer(text):
         if match.group("newline"):
             tokens.append({"type": "NEW_LINE", "text": "\n"})
+        elif match.group("block"):
+            tokens.append({"type": "BLOCK", "text": match.group("block")})
         elif match.group("formula"):
             tokens.append({"type": "FORMULA", "text": match.group("formula")})
         elif match.group("word"):
@@ -75,6 +86,20 @@ def get_svg_width(svg_fragment):
     except Exception:
         pass
     return 0.0
+    
+def get_svg_dimensions(svg_fragment):
+    try:
+        root = etree.fromstring(svg_fragment.encode("utf-8"))
+        view_box = root.get("viewBox")
+        if view_box:
+            parts = [float(v) for v in view_box.strip().split()]
+            if len(parts) == 4:
+                _, _, width, height = parts
+                return width, height
+    except Exception:
+        pass
+    return 0.0, 0.0
+
 
 def render_text_in_slot(root, slot_id, text):
     slot = root.xpath(f'//*[@id="{slot_id}"]')[0]
@@ -84,8 +109,8 @@ def render_text_in_slot(root, slot_id, text):
     font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE)
     LINE_HEIGHT_px = FONT_SIZE * LINE_HEIGHT
     
-    x_start = float(slot.get("x")) + 10 + BLOC_MARGIN_X
-    y_start = float(slot.get("y")) + 40
+    x_start = float(slot.get("x")) + 10 + TEXT_MARGIN_LEFT
+    y_start = float(slot.get("y")) + 40 + TEXT_MARGIN_UP
     cursor_x = x_start
     cursor_y = y_start
 
@@ -93,7 +118,7 @@ def render_text_in_slot(root, slot_id, text):
     for token in tokens:
         if token["type"] in ("WORD", "SPACE"):
             width = get_text_width(token["text"], font)
-            if cursor_x + width > x_start + slot_width - BLOC_MARGIN_X:
+            if cursor_x + width > x_start + slot_width - TEXT_MARGIN_RIGHT:
                 cursor_y += LINE_HEIGHT_px
                 cursor_x = x_start
             text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y))
@@ -106,10 +131,11 @@ def render_text_in_slot(root, slot_id, text):
             cursor_x += width
 
         elif token["type"] == "FORMULA":
-            svg = latex_to_svg_fragment(token["text"], scale=LATEX_SCALE)
+            svg = latex_to_svg_code(token["text"], scale=LATEX_SCALE)
             if svg:
-                width = get_svg_width(svg)
-                if cursor_x + width > x_start + slot_width - BLOC_MARGIN_X :
+                # width = get_svg_width(svg)
+                svg_width, svg_height = get_svg_dimensions(svg)
+                if cursor_x + svg_width > x_start + slot_width - TEXT_MARGIN_RIGHT :
                     cursor_y += LINE_HEIGHT_px
                     cursor_x = x_start
                 frag_root = etree.fromstring(svg.encode("utf-8"))
@@ -118,8 +144,26 @@ def render_text_in_slot(root, slot_id, text):
                 offset_y = cursor_y - FONT_SIZE * BASELINE_RATIO
                 g.set("transform", f"translate({cursor_x},{offset_y})")
                 root.append(g)
-                cursor_x += width + LATEX_MARGIN_X
-
+                cursor_x += svg_width + LATEX_INLINE_MARGIN_RIGHT
+                
+        elif token["type"] == "BLOCK":
+            svg_code = latex_to_svg_code(token["text"], scale=LATEX_SCALE)
+            if svg_code:
+                try:
+                    width, height = get_svg_dimensions(svg_code)
+                    slot_center_x = x_start + (slot_width - width) / 2
+                    cursor_y = cursor_y + height 
+                    # offset_y = cursor_y - FONT_SIZE * BASELINE_RATIO
+                    latex_svg = etree.fromstring(svg_code.encode("utf-8"))
+                    g = etree.Element("g")
+                    g.append(latex_svg)
+                    g.set("transform", f"translate({slot_center_x - width},{cursor_y - height*1.1})")
+                    root.append(g)
+                except Exception as e:
+                    print(f"⚠️ Erreur SVG LaTeX : {e}")
+                
+                cursor_y += LINE_HEIGHT_px
+                cursor_x = x_start
         elif token["type"] == "NEW_LINE":
             cursor_y += LINE_HEIGHT_px
             cursor_x = x_start
@@ -155,6 +199,7 @@ def main():
     tree = etree.parse("template.svg")
     root = tree.getroot()
 
+    render_text_in_slot(root, "title_slot", config.get("title", ""))
     render_text_in_slot(root, "text1_slot", config.get("text1", ""))
     render_text_in_slot(root, "text2_slot", config.get("text2", ""))
     #render_image_in_slot (root, "image_slot", config.get("image_path", ""))
