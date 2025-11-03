@@ -196,6 +196,7 @@ def render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", ima
             slot_image[0].set(attr, frame[0].get(attr))
         # Injecte l’image
         slot_image[0].set("{http://www.w3.org/1999/xlink}href", data_uri)
+        slot_image[0].set("preserveAspectRatio", "xMidYMid slice")
     else:
         print("❌ Slot ou balise image manquants")
 
@@ -220,9 +221,17 @@ def process_card(file_path, card_name):
     print(f"file_path = {file_path}")
     print(f"card_name : {card_name}")
     print(f"config = {config.get("image_path", "image.png")}")
-    image_path = os.path.join(file_path, config.get("image_path", "image.png"))
-    print(f"image_path = {image_path}")
-
+    
+    image_path_test = "image.png"
+    for ext in [".png", ".jpg", ".jpeg"]:
+        image_path_test = os.path.join(file_path, f"image{ext}")            
+        if os.path.exists(image_path_test):
+            image_path = image_path_test
+            
+    if not os.path.exists(image_path):
+        print(f"❌ Pas de fichier image dans {file_path}")
+        return
+    
     tree = etree.parse(TEMPLATE_PATH)
     root = tree.getroot()
 

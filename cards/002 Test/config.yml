@@ -1,0 +1,11 @@
+title: "Rapport final 2025"
+
+text1: |
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit. $E=mc^2$ Nam dignissim erat diam, sit amet cursus purus porta eu. Suspendisse potenti. Ut luctus leo sit amet purus condimentum, nec lacinia libero iaculis. Proin nec arcu aliquet, bibendum orci id, suscipit leo. Morbi sed tellus ex. Nulla ipsum diam, vehicula a semper a, semper eget dolor.  pour illustrer une somme.
+  $$\sum_{i=0,\ i\neq j}^n u_{ij}$$
+  Et même $\frac{a}{b}$ Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Mauris felis orci, sodales id pharetra quis, blandit sed nibh. Nam consequat odio ac purus malesuada, id scelerisque leo pretium. Quisque pulvinar lobortis nisi.
+  
+text2: |
+  Bloc secondaire, sans formule ici.
+
+image_path: "image.png"
