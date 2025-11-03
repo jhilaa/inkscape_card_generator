@@ -1,6 +1,7 @@
 import os
 import re
 import yaml
+import base64
 from lxml import etree
 from PIL import ImageFont
 from latex_svg import latex_to_svg_fragment
@@ -16,6 +17,11 @@ BLOC_MARGIN_X = 10 # marge des blocs de texte
 
 SVG_NS = "http://www.w3.org/2000/svg"
 NSMAP = {None: SVG_NS}
+
+# Namespace SVG
+ns = {"svg": "http://www.w3.org/2000/svg"}
+
+
 
 # === Regex pour découper texte + formules + espaces + sauts de ligne
 PATTERN = re.compile(r"""
@@ -118,6 +124,30 @@ def render_text_in_slot(root, slot_id, text):
             cursor_y += LINE_HEIGHT_px
             cursor_x = x_start
 
+def render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", image_path=""):
+    if not image_path or not os.path.exists(image_path):
+        print("❌ Image introuvable :", image_path)
+        return
+    # Encode image
+    ext = os.path.splitext(image_path)[1].lower()
+    mime = "image/png" if ext == ".png" else "image/jpeg"
+    with open(image_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("utf-8")
+    data_uri = f"data:{mime};base64,{encoded}"
+
+    # Récupère les éléments
+    frame = root.xpath(f"//*[@id='{frame_id}']")
+    slot_image = root.xpath(f"//*[@id='{slot_id}']")
+    if frame and slot_image:
+        print("✅ frame image et slot image trouvés")    
+        # Applique position et taille
+        for attr in ["x", "y", "width", "height"]:
+            slot_image[0].set(attr, frame[0].get(attr))
+        # Injecte l’image
+        slot_image[0].set("{http://www.w3.org/1999/xlink}href", data_uri)
+    else:
+        print("❌ Slot ou balise image manquants")
+
 def main():
     with open("config.yml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
@@ -127,11 +157,14 @@ def main():
 
     render_text_in_slot(root, "text1_slot", config.get("text1", ""))
     render_text_in_slot(root, "text2_slot", config.get("text2", ""))
+    #render_image_in_slot (root, "image_slot", config.get("image_path", ""))
+    render_image_in_slot(root, "image_frame", "image_slot", config.get("image_path", ""))
 
     out_path = "out/output.svg"
     os.makedirs("out", exist_ok=True)
     tree.write(out_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
     print(f"✅ SVG généré : {out_path}")
+   
 
 if __name__ == "__main__":
     main()

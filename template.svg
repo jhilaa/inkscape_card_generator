@@ -11,6 +11,7 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
+   xmlns:xlink="http://www.w3.org/1999/xlink"
   <defs
      id="defs1" />
   <sodipodi:namedview
@@ -64,7 +65,7 @@
      style="fill:#ffff9b;fill-opacity:1;stroke-width:1.14854" />
   <!-- Slot image (illustration/logo) -->
   <rect
-     id="image_slot"
+     id="image_frame"
      x="59.333954"
      y="1213.1926"
      width="360.68561"
@@ -72,6 +73,14 @@
      fill="#ffffff"
      stroke="#dddddd"
      stroke-width="2" />
+  <image
+   id="image_slot"
+   x="59.333954"
+   y="1213.1926"
+   width="360.68561"
+   height="367.36496"
+   xlink:href=""
+   xmlns:xlink="http://www.w3.org/1999/xlink" />
   <!-- Slots LaTeX -->
   <rect
      id="text1_slot"

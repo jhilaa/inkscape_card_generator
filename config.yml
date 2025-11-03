@@ -9,4 +9,4 @@ text1: |
 text2: |
   Bloc secondaire, sans formule ici.
 
-image: "./image.png"
+image_path: "./image.png"
