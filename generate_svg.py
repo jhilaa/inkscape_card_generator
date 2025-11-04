@@ -128,20 +128,7 @@ def render_text_in_slot(root, slot_id, text, font_size):
             text_elem.text = token["text"]
             set_slot_style(slot=text_elem, style="font-family", value=DEFAULT_FONT)
             set_slot_style (slot=text_elem, style="font-size", value=f"{font_size}px")
-            
-            rect = etree.Element("rect", {
-                "x": str(cursor_x),
-                "y": str(cursor_y - font_size),
-                "width": str(width),
-                "height": str(font_size),
-                "fill": "none",
-                #"stroke": "green",
-                #"stroke-width": "1.5",
-                "font_family": "arial"
-            })
-            root.append(rect)
-
-
+           
             root.append(text_elem)  
             cursor_x += width
 
@@ -236,7 +223,7 @@ def process_card(file_path, card_name):
     tree = etree.parse(TEMPLATE_PATH)
     root = tree.getroot()
 
-    render_text_in_slot(root=root, slot_id="title_slot", text=config.get("title", ""), font_size=35)
+    render_text_in_slot(root=root, slot_id="title_slot", text=config.get("title", ""), font_size=50)
     render_text_in_slot(root=root, slot_id="text1_slot", text=config.get("text1", ""), font_size=35)
     render_text_in_slot(root=root, slot_id="text2_slot", text=config.get("text2", ""), font_size=35)
     render_image_in_slot(root=root, frame_id="image_frame", slot_id="image_slot", image_path=image_path)
