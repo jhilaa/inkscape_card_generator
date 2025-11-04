@@ -13,10 +13,7 @@ CARDS_DIR = "cards"
 OUT_DIR = "out"
 TEMPLATE_PATH = "template.svg"
 
-FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-FONT_SIZE_L = 35
-FONT_SIZE_XL = 60
-LINE_HEIGHT = 1.3
+
 LATEX_SCALE = 4 # dimension du png
 LATEX_INLINE_MARGIN_RIGHT = 15 # marge autour du bloc latex
 BASELINE_RATIO = 0.03 # pour corriger la position verticale des formules
@@ -37,29 +34,25 @@ OUT_PATH = "out/output.svg"
 # === Regex pour découper texte + formules + espaces + sauts de ligne
 PATTERN = re.compile(r"""
     (?P<newline>\n)
-  | (?P<block>\$\$(?:(?!\$\$).)*\$\$)  # Bloc d'équation $$...$$
+  | (?P<block>\$\$(?:(?!\$\$).)*\$\$)
   | (?P<formula>
-        \
+        \\
 
 \[(?:(?!\\\]
 
 ).)*\\\]
 
-         # 
 
-\[...\]
-
-
-      | \\\((?:(?!\\\)).)*\\\)        # \(...\)
-      | (?<!\\)\$(?:(?!\$(?!\d)).)*?(?<!\\)\$  # Inline $...$
+      | \\\((?:(?!\\\)).)*\\\)
+      | (?<!\\)\$(?:(?!\$(?!\d)).)*?(?<!\\)\$
     )
-  | (?P<word>[^\s]+[ \t]*)            # Mot ou espace
+  | (?P<space>[ \t]+)
+  | (?P<word>[^\s]+)
 """, re.VERBOSE | re.DOTALL)
-
 
 def split_text_into_tokens(text):
     tokens = []
-    for match in PATTERN.finditer(text):
+    for match in PATTERN.finditer(text):  
         if match.group("newline"):
             tokens.append({"type": "NEW_LINE", "text": "\n"})
         elif match.group("block"):
@@ -68,18 +61,13 @@ def split_text_into_tokens(text):
             tokens.append({"type": "FORMULA", "text": match.group("formula")})
         elif match.group("word"):
             tokens.append({"type": "WORD", "text": match.group("word")})
+        elif match.group("space"):
+            tokens.append({"type": "SPACE", "text": " "})
     return tokens
 
 def get_text_width(text, font):
     return font.getlength(text)
-    
-# def set_slot_font_size(slot, font_size):
-#    existing_style = slot.get("style", "").strip()
-#    if existing_style and not existing_style.endswith(";"):
-#        existing_style += ";"
-#    new_style = f"{existing_style}font-size:{font_size}px;"
-#    slot.set("style", new_style)
-    
+   
     
 def set_slot_style(slot, style, value):
     existing_style = slot.get("style", "").strip()
@@ -115,27 +103,45 @@ def get_svg_dimensions(svg_fragment):
 
 
 def render_text_in_slot(root, slot_id, text, font_size):
+    DEFAULT_FONT = "arial"
+    FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
+    FONT = ImageFont.truetype(FONT_PATH, size=font_size)
+    LINE_HEIGHT = 1.3
+    LINE_HEIGHT_px = font_size * LINE_HEIGHT
+  
     slot = root.xpath(f'//*[@id="{slot_id}"]')[0]
     slot_width = float(slot.get("width"))
 
-    font = ImageFont.truetype(FONT_PATH, size=40)
-    LINE_HEIGHT_px = font_size * LINE_HEIGHT
-    
     x_start = float(slot.get("x")) + 10 + TEXT_MARGIN_LEFT
     y_start = float(slot.get("y")) + 40 + TEXT_MARGIN_UP
     cursor_x = x_start
     cursor_y = y_start
 
     tokens = split_text_into_tokens(text)
-    for token in tokens:
-        if token["type"] in ("WORD", "SPACEx"):
-            width = get_text_width(token["text"], font)
+    for token in tokens:    
+        if token["type"] in ("WORD", "SPACE"):
+            width = get_text_width(token["text"], FONT)
             if cursor_x + width > x_start + slot_width - TEXT_MARGIN_RIGHT:
                 cursor_y += LINE_HEIGHT_px
                 cursor_x = x_start
             text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y))
             text_elem.text = token["text"]
+            set_slot_style(slot=text_elem, style="font-family", value=DEFAULT_FONT)
             set_slot_style (slot=text_elem, style="font-size", value=f"{font_size}px")
+            
+            rect = etree.Element("rect", {
+                "x": str(cursor_x),
+                "y": str(cursor_y - font_size),
+                "width": str(width),
+                "height": str(font_size),
+                "fill": "none",
+                #"stroke": "green",
+                #"stroke-width": "1.5",
+                "font_family": "arial"
+            })
+            root.append(rect)
+
+
             root.append(text_elem)  
             cursor_x += width
 
@@ -178,7 +184,6 @@ def render_text_in_slot(root, slot_id, text, font_size):
             cursor_x = x_start
 
 def render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", image_path="", ):
-    print(f"⚠️ render_image_in_slot / image_path : {image_path}")
     if not image_path or not os.path.exists(image_path):
         print("❌ Image introuvable :", image_path)
         return
@@ -211,7 +216,6 @@ def export_svg_to_png(svg_path, png_path, scale=1.0):
         print(f"❌ Erreur PNG : {e}")
 
 def process_card(file_path, card_name):
-    
     config_path = os.path.join(file_path, "config.yml")
     if not os.path.exists(config_path):
         print(f"❌ Pas de config.yml dans {file_path}")
@@ -219,12 +223,6 @@ def process_card(file_path, card_name):
 
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-
-        
-    print(f"file_path = {file_path}")
-    print(f"card_name : {card_name}")
-    print(f"config = {config.get("image_path", "image.png")}")
-    
     image_path_test = "image.png"
     for ext in [".png", ".jpg", ".jpeg"]:
         image_path_test = os.path.join(file_path, f"image{ext}")            
@@ -238,10 +236,10 @@ def process_card(file_path, card_name):
     tree = etree.parse(TEMPLATE_PATH)
     root = tree.getroot()
 
-    render_text_in_slot(root, "title_slot", config.get("title", ""), FONT_SIZE_L)
-    render_text_in_slot(root, "text1_slot", config.get("text1", ""), FONT_SIZE_L)
-    render_text_in_slot(root, "text2_slot", config.get("text2", ""), FONT_SIZE_L)
-    render_image_in_slot(root, frame_id="image_frame", slot_id="image_slot", image_path=image_path)
+    render_text_in_slot(root=root, slot_id="title_slot", text=config.get("title", ""), font_size=35)
+    render_text_in_slot(root=root, slot_id="text1_slot", text=config.get("text1", ""), font_size=35)
+    render_text_in_slot(root=root, slot_id="text2_slot", text=config.get("text2", ""), font_size=35)
+    render_image_in_slot(root=root, frame_id="image_frame", slot_id="image_slot", image_path=image_path)
 
     os.makedirs(OUT_DIR, exist_ok=True)
     svg_path = os.path.join(OUT_DIR, f"{card_name}.svg")

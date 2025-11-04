@@ -1,0 +1,9 @@
+title: "Test 2"
+
+text1: |
+  a a a a ab ab a a a abc   
+  
+text2: |
+  Bloc secondaire, sans formule ici.
+
+image_path: "image.png"
