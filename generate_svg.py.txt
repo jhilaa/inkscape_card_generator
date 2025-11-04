@@ -128,15 +128,19 @@ def render_text_in_slot(root, slot_id, text, font_size):
 
     tokens = split_text_into_tokens(text)
     for token in tokens:
-        if token["type"] in ("WORD", "SPACEx"):
+        if token["type"] in ("WORD", "SPACE"):
             width = get_text_width(token["text"], font)
             if cursor_x + width > x_start + slot_width - TEXT_MARGIN_RIGHT:
                 cursor_y += LINE_HEIGHT_px
                 cursor_x = x_start
             text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y))
             text_elem.text = token["text"]
-            set_slot_style (slot=text_elem, style="font-size", value=f"{font_size}px")
+            set_slot_style (slot=text_elem, style="font_size", value=f"{font_size}px")
+            #set_slot_style (text_elem, "font_size", font_size)
             root.append(text_elem)  
+            #text_elem = etree.Element("text", x=str(cursor_x), y=str(cursor_y)) # , FONT_SIZE=str(FONT_SIZE))
+            #text_elem.text = token["text"]
+            #root.append(text_elem)
             cursor_x += width
 
         elif token["type"] == "FORMULA":
